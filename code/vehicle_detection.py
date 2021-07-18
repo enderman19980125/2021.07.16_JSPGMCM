@@ -1,6 +1,8 @@
 import os
 import cv2
+import argparse
 import numpy as np
+from tqdm import tqdm
 
 
 def diff(image_1: np.ndarray, image_2: np.ndarray) -> np.ndarray:
@@ -57,5 +59,40 @@ def detect_with_opencv() -> None:
         image_1 = image_2
 
 
+def detect_single_direction_with_yolo(input_path: str, output_path: str, darknet_directory: str, offset: int) -> None:
+    files_list = sorted(os.listdir(input_path), key=lambda f: int(f.split('_')[0].strip('s')))
+
+    for i, file in tqdm(enumerate(files_list)):
+        if i < offset:
+            continue
+
+        filename = file.split(".")[0]
+        os.system(f"cd {darknet_directory} &&"
+                  f"./darknet detect cfg/yolov3-tiny.cfg yolov3-tiny.weights ../{input_path}/{file}"
+                  f"> ../{output_path}/{filename}.txt")
+
+        src_file = f"{darknet_directory}/predictions.jpg"
+        dst_file = f"{output_path}/{filename}.jpg"
+        os.rename(src_file, dst_file)
+
+
+def detect_with_yolo(op: str) -> None:
+    _, direction, offset = op.split('-')
+    offset = int(offset)
+    input_path = f"../data/{direction}-raw"
+    output_path = f"../data/{direction}-detect"
+    darknet_directory = f"darknet-{direction}"
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+    detect_single_direction_with_yolo(input_path, output_path, darknet_directory, offset)
+
+
 if __name__ == '__main__':
-    detect_with_opencv()
+    # detect_with_opencv()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("operation")
+    args = parser.parse_args()
+
+    if args.operation.startswith("yolo"):
+        detect_with_yolo(args.operation)
