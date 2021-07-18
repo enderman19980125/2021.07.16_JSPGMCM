@@ -12,16 +12,30 @@ def diff(image_1: np.ndarray, image_2: np.ndarray) -> np.ndarray:
     return image
 
 
-def find_contours(image: np.ndarray) -> list:
+def filter_contours(contours: list) -> list:
     large_contours = []
-    contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
     for contour in contours:
         area = cv2.contourArea(contour)
         if area > 3000:
             large_contours.append(contour)
-
     return large_contours
+
+
+def find_contours_1(image: np.ndarray) -> np.ndarray:
+    contours, hierarchy = cv2.findContours(image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = filter_contours(contours)
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    cv2.drawContours(image, contours, -1, (0, 0, 255), 10)
+    return image
+
+
+def find_contours_2(image: np.ndarray) -> list:
+    cascade_classifier = cv2.CascadeClassifier('cars.xml')
+    contours = cascade_classifier.detectMultiScale(image, 1.1, 1)
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    for (x, y, w, h) in contours:
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 10)
+    return image
 
 
 def detect_with_opencv() -> None:
@@ -36,14 +50,11 @@ def detect_with_opencv() -> None:
             image_1 = image_2
             continue
 
-        delta = diff(image_1, image_2)
-        image_1 = image_2
-
-        contours = find_contours(delta)
-
-        delta = cv2.cvtColor(delta, cv2.COLOR_GRAY2RGB)
-        cv2.drawContours(delta, contours, -1, (0, 0, 255), 10)
+        # delta = diff(image_1, image_2)
+        # delta = find_contours_1(delta)
+        delta = find_contours_2(image_2)
         cv2.imwrite(f"../data/{file}", delta)
+        image_1 = image_2
 
 
 if __name__ == '__main__':
