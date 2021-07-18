@@ -16,7 +16,7 @@ class BoundingBox:
 
     @property
     def center(self) -> Tuple[int, int]:
-        return (self.top + self.bottom) // 2, (self.left + self.right) // 2
+        return (self.left + self.right) // 2, (self.top + self.bottom) // 2
 
 
 def extract_bounding_boxes(content: List[str]) -> List[BoundingBox]:
@@ -79,10 +79,14 @@ def detect_single_direction(input_path: str, output_file_path: str) -> None:
     for file in tqdm(files_list):
         file_path = os.path.join(input_path, file)
         with open(file_path, 'r') as f:
-            file_id = int(file.split('_')[0].strip('s'))
             content = f.readlines()
             bounding_boxes_list = extract_bounding_boxes(content)
             bounding_boxes_list = filter_bounding_boxes(bounding_boxes_list)
+
+            seq_id, time_id = file.split('.')[0].split('_')
+            seq_id = f"{int(seq_id.rstrip('s')):05d}"
+            time_id = time_id.rstrip('c')
+            file_id = f"{seq_id}_{time_id}"
             bounding_boxes_dict[file_id] = bounding_boxes_list
 
     with open(output_file_path, "wb") as output_file:
