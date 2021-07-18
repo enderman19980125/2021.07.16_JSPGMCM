@@ -42,7 +42,7 @@ def extract_bounding_boxes(content: List[str]) -> List[BoundingBox]:
 
 
 def filter_bounding_boxes(bounding_boxes_list: List[BoundingBox]) -> List[BoundingBox]:
-    bounding_boxes_list = [box for box in bounding_boxes_list if box.vehicle in ("car", "bus", "truck")]
+    bounding_boxes_list = [box for box in bounding_boxes_list if box.vehicle in ("car", "bus", "truck", "train")]
 
     to_removed_index_set = set()
 
