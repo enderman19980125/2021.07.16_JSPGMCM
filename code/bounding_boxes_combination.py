@@ -30,7 +30,7 @@ def extract_bounding_boxes(content: List[str]) -> List[BoundingBox]:
             bounding_box = BoundingBox(vehicle=vehicle, confidence=confidence, left=0, top=0, right=0, bottom=0)
             cached_list.append(bounding_box)
         else:
-            result = re.findall("Bounding Box: Left=([0-9]+), Top=([0-9]+), Right=([0-9]+), Bottom=([0-9]+)", line)
+            result = re.findall("Bounding Box: Left=([-0-9]+), Top=([-0-9]+), Right=([-0-9]+), Bottom=([0-9]+)", line)
             left, top, right, bottom = result[0]
             left, top, right, bottom = int(left), int(top), int(right), int(bottom)
             for bounding_box in cached_list:
@@ -59,8 +59,8 @@ def filter_bounding_boxes(bounding_boxes_list: List[BoundingBox]) -> List[Boundi
                 left, right = max(bb1.left, bb2.left), min(bb1.right, bb2.right)
                 s1 = (bb1.bottom - bb1.top) * (bb1.right - bb1.left)
                 s2 = (bb2.bottom - bb2.top) * (bb2.right - bb2.left)
-                ss = (bottom - left) * (right - left)
-                if top <= bottom and left <= right and 2 * ss > s1 and 2 * ss > s2:
+                ss = (bottom - top) * (right - left)
+                if top <= bottom and left <= right and (2 * ss > s1 or 2 * ss > s2):
                     to_removed_index_set.add(i)
 
     for i in sorted(to_removed_index_set, reverse=True):
