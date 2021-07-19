@@ -16,6 +16,8 @@ class BoundingBoxChain(BoundingBox):
         self.minute = minute
         self.second = second
         self.lane_id = -1
+        self.distance = -1
+        self.speed = -1
         self.previous = None
         self.next = None
 
@@ -41,10 +43,14 @@ def save_tracks(direction: str, obj: object) -> None:
         pickle.dump(obj, output_file)
 
 
-def load_masks(direction: str) -> Tuple[Mask, List[Mask]]:
+def load_masks(direction: str) -> Tuple[Mask, Mask, List[Mask]]:
     valid_mask = cv2.imread(f"../data/masks/{direction}-valid.jpg")
     valid_mask = cv2.cvtColor(valid_mask, cv2.COLOR_BGR2GRAY)
     valid_mask = Mask(image=valid_mask, direction=direction, lane_id=0, is_left=False, is_straight=False, is_right=False)
+
+    distance_mask = cv2.imread(f"../data/masks/{direction}-distance.jpg")
+    distance_mask = cv2.cvtColor(distance_mask, cv2.COLOR_BGR2GRAY)
+    distance_mask = Mask(image=distance_mask, direction=direction, lane_id=0, is_left=False, is_straight=False, is_right=False)
 
     files_list = os.listdir("../data/masks")
     files_list = [f for f in files_list if f.startswith(f"{direction}-lane") and f.endswith(".jpg")]
@@ -60,7 +66,7 @@ def load_masks(direction: str) -> Tuple[Mask, List[Mask]]:
                     is_left=lsr.find('l') >= 0, is_straight=lsr.find('s') >= 0, is_right=lsr.find('r') >= 0)
         lane_masks_list.append(mask)
 
-    return valid_mask, lane_masks_list
+    return valid_mask, distance_mask, lane_masks_list
 
 
 def extract_seq_and_time(file_id: str) -> Tuple[str, int, int, int]:
@@ -69,8 +75,10 @@ def extract_seq_and_time(file_id: str) -> Tuple[str, int, int, int]:
     return seq_id, hour, minute, second
 
 
-def detect_position(bounding_box: BoundingBoxChain, valid_mask: Mask, lane_masks_list: List[Mask]) -> int:
+def detect_position(bounding_box: BoundingBoxChain, valid_mask: Mask, distance_mask: Mask, lane_masks_list: List[Mask]) -> int:
     x, y = bounding_box.center
+    bounding_box.distance = distance_mask.image[y][x] - 100
+
     lane_id = -1
 
     if valid_mask.image[y][x] < 100:
@@ -114,6 +122,21 @@ def link_bounding_box(bounding_box: BoundingBoxChain, open_bounding_boxes_list: 
     return linked_bounding_box
 
 
+def add_bounding_box(bounding_box: BoundingBoxChain, linked_bounding_box: BoundingBoxChain, cached_bounding_boxes_list: List[BoundingBoxChain],
+                     open_bounding_boxes_list: List[BoundingBoxChain], closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
+    bounding_box.previous = linked_bounding_box
+    bounding_box.distance = min(bounding_box.distance, linked_bounding_box.distance)
+    distance = linked_bounding_box.distance - bounding_box.distance
+    time = (int(bounding_box.seq_id) - int(linked_bounding_box.seq_id)) * 0.2
+    bounding_box.speed = 3.6 * distance / time
+
+    linked_bounding_box.next = bounding_box
+
+    open_bounding_boxes_list.remove(linked_bounding_box)
+    closed_bounding_boxes_list.append(linked_bounding_box)
+    cached_bounding_boxes_list.append(bounding_box)
+
+
 def clean(seq_id: str, open_bounding_boxes_list: List[BoundingBoxChain], closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
     to_moved_list = []
 
@@ -127,7 +150,7 @@ def clean(seq_id: str, open_bounding_boxes_list: List[BoundingBoxChain], closed_
         closed_bounding_boxes_list.append(bounding_box)
 
 
-def show(closed_bounding_boxes_list) -> None:
+def show_brief(closed_bounding_boxes_list) -> None:
     for first_bounding_box in closed_bounding_boxes_list:
         if first_bounding_box.previous is None:
             last_bounding_box = first_bounding_box
@@ -141,9 +164,23 @@ def show(closed_bounding_boxes_list) -> None:
             )
 
 
+def show_detail(closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
+    k = 0
+    for first_bounding_box in closed_bounding_boxes_list:
+        if first_bounding_box.previous is None:
+            k += 1
+            print(f"---- Car #{k} entered on lane #{first_bounding_box.lane_id} ----")
+            print(f"\tSeq  \tTime     \tLane\tDistance\tSpeed")
+            bounding_box = first_bounding_box
+            while bounding_box:
+                print(f"\t{bounding_box.seq_id}\t{bounding_box.hour:02d}:{bounding_box.minute:02d}:{bounding_box.second:02d}\t"
+                      f"{bounding_box.lane_id:4d}\t{bounding_box.distance:8d}\t{bounding_box.speed:<.2f}")
+                bounding_box = bounding_box.next
+
+
 def detect_single_direction_tracks(direction: str) -> None:
     bounding_boxes_dict = load_bounding_boxes(direction)
-    valid_mask, lane_masks_list = load_masks(direction)
+    valid_mask, distance_mask, lane_masks_list = load_masks(direction)
     open_bounding_boxes_list = []
     closed_bounding_boxes_list = []
 
@@ -152,20 +189,16 @@ def detect_single_direction_tracks(direction: str) -> None:
         cached_bounding_boxes_list = []
         bounding_boxes_list.sort(key=lambda bb: bb.center[1], reverse=True)
 
-        if seq_id >= '00500':
-            break
+        # if seq_id >= '00500':
+        #     break
 
         for bounding_box in bounding_boxes_list:
             bounding_box = BoundingBoxChain(bounding_box, seq_id, hour, minute, second)
-            bounding_box.lane_id = detect_position(bounding_box, valid_mask, lane_masks_list)
+            bounding_box.lane_id = detect_position(bounding_box, valid_mask, distance_mask, lane_masks_list)
             linked_bounding_box = link_bounding_box(bounding_box, open_bounding_boxes_list)
 
             if linked_bounding_box:
-                bounding_box.previous = linked_bounding_box
-                linked_bounding_box.next = bounding_box
-                open_bounding_boxes_list.remove(linked_bounding_box)
-                closed_bounding_boxes_list.append(linked_bounding_box)
-                cached_bounding_boxes_list.append(bounding_box)
+                add_bounding_box(bounding_box, linked_bounding_box, cached_bounding_boxes_list, open_bounding_boxes_list, closed_bounding_boxes_list)
             elif bounding_box.lane_id > 0:
                 cached_bounding_boxes_list.append(bounding_box)
 
@@ -174,7 +207,9 @@ def detect_single_direction_tracks(direction: str) -> None:
 
     closed_bounding_boxes_list.extend(open_bounding_boxes_list)
     save_tracks(direction, closed_bounding_boxes_list)
-    show(closed_bounding_boxes_list)
+
+    # show_brief(closed_bounding_boxes_list)
+    show_detail(closed_bounding_boxes_list)
 
 
 def detect_tracks(op: str) -> None:
