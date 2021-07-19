@@ -2,7 +2,7 @@ import os
 import cv2
 import pickle
 import numpy as np
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 
 from bounding_boxes_combination import BoundingBox
 
@@ -208,18 +208,28 @@ def show_detail(closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
                 bounding_box = bounding_box.next
 
 
-def extract_single_track(bounding_boxes_list: List[BoundingBoxChain]) -> Track:
+def extract_single_track(bounding_boxes_list: List[BoundingBoxChain]) -> Optional[Track]:
+    if bounding_boxes_list[-1].timestamp - bounding_boxes_list[0].timestamp > 60:
+        while bounding_boxes_list[-1].timestamp - bounding_boxes_list[0].timestamp > 60:
+            bounding_boxes_list.pop()
+        bounding_boxes_list[-1].next = None
+        bounding_boxes_list[-1].lane_id = -1
+        bounding_boxes_list[-1].distance = -10
+
+    if bounding_boxes_list[0].lane_id <= 0:
+        return None
+
     # show_detail(bounding_boxes_list)
 
     track = Track()
 
     vehicles_list = [bounding_box.vehicle for bounding_box in bounding_boxes_list]
     if "bus" in vehicles_list:
-        track.vehicle = "小"
-    elif "truck" in vehicles_list:
+        track.vehicle = "大"
+    elif "truck" in vehicles_list or "train" in vehicles_list:
         track.vehicle = "中"
     elif "car" in vehicles_list:
-        track.vehicle = "大"
+        track.vehicle = "小"
 
     first_bounding_box = bounding_boxes_list[0]
     last_bounding_box = bounding_boxes_list[-1]
@@ -296,6 +306,7 @@ def extract_single_track(bounding_boxes_list: List[BoundingBoxChain]) -> Track:
         assert 1 <= track.enter_lane_id == track.stop_lane_id <= 4
 
     assert track.enter_distance >= 0
+    assert track.total_seconds <= 80
     assert track.total_distance <= 80
     assert track.vehicle in ["小", "中", "大"]
 
@@ -312,8 +323,8 @@ def export_tracks(direction: str, closed_bounding_boxes_list: List[BoundingBoxCh
             while bounding_box:
                 bounding_boxes_list.append(bounding_box)
                 bounding_box = bounding_box.next
-            track = extract_single_track(bounding_boxes_list)
-            tracks_list.append(track)
+            if track := extract_single_track(bounding_boxes_list):
+                tracks_list.append(track)
 
     if direction == "north":
         direction = "北"
@@ -324,7 +335,7 @@ def export_tracks(direction: str, closed_bounding_boxes_list: List[BoundingBoxCh
     elif direction == "east":
         direction = "东"
 
-    tracks_list.sort(key=lambda track: f"{track.enter_time}_{track.enter_lane_id}")
+    tracks_list.sort(key=lambda t: f"{t.enter_time}_{t.enter_lane_id}")
     for i, track in enumerate(tracks_list, start=1):
         print(f"{direction}{i:03d}\t{track.vehicle}\t"
               f"{track.enter_time}\t{track.enter_lane_id}\t{track.enter_distance}\t{track.enter_speed:.2f}\t"
