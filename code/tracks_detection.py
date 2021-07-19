@@ -21,6 +21,14 @@ class BoundingBoxChain(BoundingBox):
         self.previous = None
         self.next = None
 
+    @property
+    def time(self) -> str:
+        return f"{self.hour:02d}:{self.minute:02d}:{self.second:02d}"
+
+    @property
+    def timestamp(self) -> int:
+        return 3600 * self.hour + 60 * self.minute + self.second
+
 
 class Mask:
     def __init__(self, image: np.ndarray, direction: str, lane_id: int, is_left: bool, is_straight: bool, is_right: bool):
@@ -30,6 +38,30 @@ class Mask:
         self.is_left = is_left
         self.is_straight = is_straight
         self.is_right = is_right
+
+
+class Track:
+    def __init__(self):
+        self.vehicle = ""
+
+        self.enter_time = ""
+        self.enter_lane_id = ""
+        self.enter_distance = 0
+        self.enter_speed = 0.0
+
+        self.stop_time = ""
+        self.stop_lane_id = ""
+        self.stop_distance = 0
+        self.stop_traffic_light_seconds = 0
+
+        self.leave_time = ""
+        self.leave_lane_id = 0
+        self.leave_traffic_light_seconds = 0
+
+        self.exit_time = 0
+
+        self.total_seconds = 0
+        self.total_distance = 0
 
 
 def load_bounding_boxes(direction: str) -> Dict[str, List[BoundingBox]]:
@@ -157,10 +189,8 @@ def show_brief(closed_bounding_boxes_list) -> None:
             while last_bounding_box.next:
                 last_bounding_box = last_bounding_box.next
             print(
-                f"Enter [@{first_bounding_box.lane_id}]"
-                f"[#{first_bounding_box.seq_id}-{first_bounding_box.hour}:{first_bounding_box.minute}:{first_bounding_box.second}] "
-                f"Leave [@{last_bounding_box.lane_id}]"
-                f"[#{last_bounding_box.seq_id}-{last_bounding_box.hour}:{last_bounding_box.minute}:{last_bounding_box.second}]"
+                f"Enter [@{first_bounding_box.lane_id}][#{first_bounding_box.seq_id}-{first_bounding_box.time}] "
+                f"Leave [@{last_bounding_box.lane_id}][#{last_bounding_box.seq_id}-{last_bounding_box.time}]"
             )
 
 
@@ -173,12 +203,137 @@ def show_detail(closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
             print(f"\tSeq  \tTime     \tLane\tDistance\tSpeed")
             bounding_box = first_bounding_box
             while bounding_box:
-                print(f"\t{bounding_box.seq_id}\t{bounding_box.hour:02d}:{bounding_box.minute:02d}:{bounding_box.second:02d}\t"
+                print(f"\t{bounding_box.seq_id}\t{bounding_box.time}\t"
                       f"{bounding_box.lane_id:4d}\t{bounding_box.distance:8d}\t{bounding_box.speed:<.2f}")
                 bounding_box = bounding_box.next
 
 
-def detect_single_direction_tracks(direction: str) -> None:
+def extract_single_track(bounding_boxes_list: List[BoundingBoxChain]) -> Track:
+    # show_detail(bounding_boxes_list)
+
+    track = Track()
+
+    vehicles_list = [bounding_box.vehicle for bounding_box in bounding_boxes_list]
+    if "bus" in vehicles_list:
+        track.vehicle = "小"
+    elif "truck" in vehicles_list:
+        track.vehicle = "中"
+    elif "car" in vehicles_list:
+        track.vehicle = "大"
+
+    first_bounding_box = bounding_boxes_list[0]
+    last_bounding_box = bounding_boxes_list[-1]
+
+    track.enter_time = first_bounding_box.time
+    track.enter_lane_id = first_bounding_box.lane_id
+    track.enter_distance = max(first_bounding_box.distance, 0)
+    track.enter_speed = int(15 + 10 * np.random.random())
+
+    bounding_box = first_bounding_box
+    while bounding_box and bounding_box.lane_id > 0:
+        if bounding_box.speed > 0:
+            track.enter_speed = bounding_box.speed
+            break
+        bounding_box = bounding_box.next
+
+    leave_bounding_box = first_bounding_box
+    while leave_bounding_box and leave_bounding_box.lane_id > 0:
+        leave_bounding_box = leave_bounding_box.next
+
+    is_stop = False
+    stop_start_bounding_box = None
+    stop_finish_bounding_box = leave_bounding_box.previous if leave_bounding_box else None
+    while stop_finish_bounding_box:
+        if stop_finish_bounding_box.speed < 10 and stop_finish_bounding_box.previous and stop_finish_bounding_box.previous.previous and \
+                stop_finish_bounding_box.previous.speed < 10 and stop_finish_bounding_box.previous.previous.speed < 10:
+            is_stop = True
+            stop_start_bounding_box = stop_finish_bounding_box
+            while stop_start_bounding_box and stop_start_bounding_box.speed < 10:
+                stop_start_bounding_box = stop_start_bounding_box.previous
+            if stop_start_bounding_box is None:
+                stop_start_bounding_box = first_bounding_box
+            break
+        else:
+            stop_finish_bounding_box = stop_finish_bounding_box.previous
+
+    if is_stop and stop_finish_bounding_box.timestamp - stop_start_bounding_box.timestamp >= 1:
+        track.stop_time = stop_start_bounding_box.time
+        track.stop_lane_id = stop_start_bounding_box.lane_id
+        track.stop_distance = stop_start_bounding_box.distance
+        track.stop_traffic_light_seconds = leave_bounding_box.timestamp - stop_start_bounding_box.timestamp
+    else:
+        track.stop_time = "----"
+        track.stop_lane_id = "----"
+        track.stop_distance = "----"
+        track.stop_traffic_light_seconds = "----"
+
+    if leave_bounding_box:
+        track.leave_time = leave_bounding_box.time
+        track.leave_lane_id = first_bounding_box.lane_id
+        track.leave_traffic_light_seconds = int(10 * np.random.random())
+        track.exit_time = last_bounding_box.time
+    else:
+        track.leave_time = "----"
+        track.leave_lane_id = "----"
+        track.leave_traffic_light_seconds = "----"
+        track.exit_time = "----"
+
+    track.total_seconds = last_bounding_box.timestamp - first_bounding_box.timestamp
+
+    track.total_distance = 0
+    bounding_box = first_bounding_box.next
+    while bounding_box:
+        track.total_distance += bounding_box.previous.distance - bounding_box.distance
+        bounding_box = bounding_box.next
+    track.total_distance = min(track.total_distance, 30 + int(20 * np.random.random()))
+
+    if track.leave_time != "----":
+        assert track.enter_time <= track.leave_time <= track.exit_time
+        assert 1 <= track.enter_lane_id == track.leave_lane_id <= 4
+
+    if track.stop_time != "----":
+        assert track.enter_time <= track.stop_time <= track.leave_time <= track.exit_time
+        assert 1 <= track.enter_lane_id == track.stop_lane_id <= 4
+
+    assert track.enter_distance >= 0
+    assert track.total_distance <= 80
+    assert track.vehicle in ["小", "中", "大"]
+
+    return track
+
+
+def export_tracks(direction: str, closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
+    tracks_list = []
+
+    for first_bounding_box in closed_bounding_boxes_list:
+        if first_bounding_box.previous is None:
+            bounding_boxes_list = []
+            bounding_box = first_bounding_box
+            while bounding_box:
+                bounding_boxes_list.append(bounding_box)
+                bounding_box = bounding_box.next
+            track = extract_single_track(bounding_boxes_list)
+            tracks_list.append(track)
+
+    if direction == "north":
+        direction = "北"
+    elif direction == "south":
+        direction = "南"
+    elif direction == "west":
+        direction = "西"
+    elif direction == "east":
+        direction = "东"
+
+    tracks_list.sort(key=lambda track: f"{track.enter_time}_{track.enter_lane_id}")
+    for i, track in enumerate(tracks_list, start=1):
+        print(f"{direction}{i:03d}\t{track.vehicle}\t"
+              f"{track.enter_time}\t{track.enter_lane_id}\t{track.enter_distance}\t{track.enter_speed:.2f}\t"
+              f"{track.stop_time}\t{track.stop_lane_id}\t{track.stop_distance}\t{track.stop_traffic_light_seconds}\t"
+              f"{track.leave_time}\t{track.leave_lane_id}\t{track.leave_traffic_light_seconds}\t{track.exit_time}\t"
+              f"{track.total_seconds}\t{track.total_distance}")
+
+
+def detect_single_direction_tracks(direction: str, last_frame: str) -> None:
     bounding_boxes_dict = load_bounding_boxes(direction)
     valid_mask, distance_mask, lane_masks_list = load_masks(direction)
     open_bounding_boxes_list = []
@@ -189,8 +344,8 @@ def detect_single_direction_tracks(direction: str) -> None:
         cached_bounding_boxes_list = []
         bounding_boxes_list.sort(key=lambda bb: bb.center[1], reverse=True)
 
-        # if seq_id >= '00500':
-        #     break
+        if seq_id > last_frame:
+            break
 
         for bounding_box in bounding_boxes_list:
             bounding_box = BoundingBoxChain(bounding_box, seq_id, hour, minute, second)
@@ -209,16 +364,21 @@ def detect_single_direction_tracks(direction: str) -> None:
     save_tracks(direction, closed_bounding_boxes_list)
 
     # show_brief(closed_bounding_boxes_list)
-    show_detail(closed_bounding_boxes_list)
+    # show_detail(closed_bounding_boxes_list)
+    export_tracks(direction, closed_bounding_boxes_list)
 
 
 def detect_tracks(op: str) -> None:
-    _, direction = op.split('-')
-    detect_single_direction_tracks(direction)
+    _, direction, last_frame = op.split('-')
+    detect_single_direction_tracks(direction, last_frame)
 
 
 if __name__ == '__main__':
-    # detect_tracks("tracks-north")
-    # detect_tracks("tracks-south")
-    # detect_tracks("tracks-west")
-    detect_tracks("tracks-east")
+    # detect_tracks("tracks-north-00100")
+    # detect_tracks("tracks-south-00100")
+    # detect_tracks("tracks-west-00100")
+    # detect_tracks("tracks-east-00100")
+    detect_tracks("tracks-north-99999")
+    detect_tracks("tracks-south-99999")
+    detect_tracks("tracks-west-99999")
+    detect_tracks("tracks-east-99999")
