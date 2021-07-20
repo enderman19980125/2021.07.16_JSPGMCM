@@ -1,0 +1,31 @@
+\documentclass[a4paper,12pt]{ctexart}
+
+\usepackage{geometry}
+\geometry{top=3cm,bottom=3cm}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{0pt}
+\fancyhead{}
+\fancyfoot[C]{\thepage}
+
+\usepackage{titlesec}
+\titleformat*{\section}{\centering\heiti\zihao{4}}
+\usepackage{zhnumber}
+\renewcommand\thesection{\zhnum{section}、\hspace{-1em}}
+\renewcommand\thesubsection{\arabic{section}.\arabic{subsection}}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+
+\begin{document}
+    \begin{center}
+        题目：
+    \end{center}
+    \input{0_abstract.tex}
+    \input{1_problem_restatement.tex}
+    \input{2_hypothesis.tex}
+    \input{3_problem_1.tex}
+    \input{4_problem_2.tex}
+    \input{5_problem_3.tex}
+\end{document}
