@@ -1,8 +1,17 @@
 \documentclass[a4paper,12pt]{ctexart}
 
+\usepackage{mathtools}
+\usepackage{amsmath}
+\usepackage{cleveref}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{tabularx}
+\usepackage{color}
+\usepackage{float}
 \usepackage{geometry}
 \geometry{top=3cm,bottom=3cm}
-
+\usepackage{ulem}
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \renewcommand{\headrulewidth}{0pt}
@@ -16,17 +25,25 @@
 \renewcommand\thesubsection{\arabic{section}.\arabic{subsection}}
 
 \usepackage{amsmath}
-\usepackage{amsfonts}
 \usepackage{graphicx}
 
 \begin{document}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[scale=0.6]{figures/封面.png}
+    \end{figure}
     \begin{center}
-        题目：
+        题目：\uline{A题：路口信号灯实时智能控制方案研究}
     \end{center}
     \input{0_abstract.tex}
+    \newpage
     \input{1_problem_restatement.tex}
     \input{2_hypothesis.tex}
     \input{3_problem_1.tex}
     \input{4_problem_2.tex}
     \input{5_problem_3.tex}
+
+    \newpage
+    \bibliographystyle{acm}
+    \bibliography{ref}
 \end{document}
