@@ -1,0 +1,5 @@
+../../data/south-raw/8_105243.jpg: Predicted in 0.356768 seconds.
+car: 66%
+Bounding Box: Left=1700, Top=442, Right=1808, Bottom=501
+person: 56%
+Bounding Box: Left=2400, Top=1009, Right=2521, Bottom=1207

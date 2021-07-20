@@ -1,0 +1,3 @@
+../../data/south-raw/1_105242.jpg: Predicted in 0.284813 seconds.
+car: 72%
+Bounding Box: Left=2626, Top=555, Right=2736, Bottom=611

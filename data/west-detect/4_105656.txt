@@ -1,0 +1,5 @@
+../../data/west-raw/4_105656.jpg: Predicted in 0.328136 seconds.
+car: 78%
+Bounding Box: Left=355, Top=1137, Right=553, Bottom=1420
+car: 62%
+Bounding Box: Left=299, Top=1072, Right=695, Bottom=1472

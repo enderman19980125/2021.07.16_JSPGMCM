@@ -1,0 +1,5 @@
+../../data/south-raw/4_105242.jpg: Predicted in 0.382341 seconds.
+bus: 55%
+Bounding Box: Left=1786, Top=365, Right=2558, Bottom=669
+car: 52%
+Bounding Box: Left=2626, Top=541, Right=2748, Bottom=596

@@ -1,0 +1,3 @@
+../../data/south-raw/9_105243.jpg: Predicted in 0.359714 seconds.
+person: 53%
+Bounding Box: Left=2397, Top=1010, Right=2524, Bottom=1210

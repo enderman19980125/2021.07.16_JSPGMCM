@@ -1,0 +1,9 @@
+../../data/north-raw/0s_105929c.jpg: Predicted in 0.269682 seconds.
+car: 60%
+Bounding Box: Left=264, Top=1500, Right=1039, Bottom=1999
+car: 51%
+Bounding Box: Left=1278, Top=619, Right=1364, Bottom=717
+person: 65%
+Bounding Box: Left=1744, Top=983, Right=1807, Bottom=1126
+person: 58%
+Bounding Box: Left=1760, Top=916, Right=1820, Bottom=1034

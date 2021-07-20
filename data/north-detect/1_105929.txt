@@ -1,0 +1,7 @@
+../../data/north-raw/1_105929.jpg: Predicted in 0.247764 seconds.
+traffic light: 50%
+Bounding Box: Left=1247, Top=585, Right=1341, Bottom=680
+car: 65%
+Bounding Box: Left=261, Top=1497, Right=1039, Bottom=1999
+person: 68%
+Bounding Box: Left=1735, Top=884, Right=1801, Bottom=1000

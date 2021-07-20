@@ -1,0 +1,3 @@
+../../data/north-raw/3_105929.jpg: Predicted in 0.278445 seconds.
+car: 66%
+Bounding Box: Left=256, Top=1497, Right=1022, Bottom=1997

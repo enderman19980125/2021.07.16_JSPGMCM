@@ -1,0 +1,1 @@
+../../data/west-raw/7_105657.jpg: Predicted in 0.314883 seconds.

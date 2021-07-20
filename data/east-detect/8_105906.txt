@@ -1,0 +1,1 @@
+../../data/east-raw/8_105906.jpg: Predicted in 0.441176 seconds.
