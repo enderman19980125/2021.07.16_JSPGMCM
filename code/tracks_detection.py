@@ -208,6 +208,26 @@ def show_detail(closed_bounding_boxes_list: List[BoundingBoxChain]) -> None:
                 bounding_box = bounding_box.next
 
 
+def traffic_light_control(direction: str, bounding_boxes_list: List[BoundingBoxChain]) -> List[BoundingBoxChain]:
+    def reduce(bb_list: List[BoundingBoxChain]) -> None:
+        if len(bb_list) > 5:
+            bb_list = bb_list[:5]
+            bb_list[-1].distance = -10
+            bb_list[-1].lane_id = -1
+
+    time_offset = bounding_boxes_list[0].timestamp % 80
+    if direction == "north" and 0 <= time_offset <= 20:
+        reduce(bounding_boxes_list)
+    elif direction == "south" and 20 <= time_offset <= 40:
+        reduce(bounding_boxes_list)
+    elif direction == "west" and 40 <= time_offset <= 60:
+        reduce(bounding_boxes_list)
+    elif direction == "east" and 60 <= time_offset <= 80:
+        reduce(bounding_boxes_list)
+
+    return bounding_boxes_list
+
+
 def extract_single_track(bounding_boxes_list: List[BoundingBoxChain]) -> Optional[Track]:
     if bounding_boxes_list[-1].timestamp - bounding_boxes_list[0].timestamp > 60:
         while bounding_boxes_list[-1].timestamp - bounding_boxes_list[0].timestamp > 60:
@@ -323,6 +343,7 @@ def export_tracks(direction: str, closed_bounding_boxes_list: List[BoundingBoxCh
             while bounding_box:
                 bounding_boxes_list.append(bounding_box)
                 bounding_box = bounding_box.next
+            bounding_boxes_list = traffic_light_control(direction, bounding_boxes_list)
             if track := extract_single_track(bounding_boxes_list):
                 tracks_list.append(track)
 
